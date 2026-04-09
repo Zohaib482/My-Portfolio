@@ -29,7 +29,7 @@
 
 /* Native smooth scroll fights GSAP ScrollTrigger scrub — keep instant for smoother scroll-driven motion */
 html {
-  scroll-behavior: auto;
+  scroll-behavior: smooth;
 }
 
 body {
