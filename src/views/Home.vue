@@ -565,7 +565,13 @@ const toggleMobileMenu = () => {
             <div class="profile-card glass-effect hover-lift">
               <div class="profile-image">
                 <div class="profile-avatar">
-                  <i class="fas fa-user-tie"></i>
+                  <img
+                    src="/profile-photo.jpeg"
+                    alt="Zohaib Khan"
+                    width="212"
+                    height="212"
+                    decoding="async"
+                  />
                 </div>
                 <div class="profile-ring"></div>
               </div>
@@ -1184,16 +1190,29 @@ const toggleMobileMenu = () => {
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 2rem;
-  font-size: 3.5rem;
-  font-weight: bold;
   border: 4px solid rgba(255, 255, 255, 0.3);
   position: relative;
   z-index: 2;
+}
+
+.profile-avatar {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
 }
 
 .profile-info h3 {
