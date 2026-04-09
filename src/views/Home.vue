@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref, computed } from 'vue'
+import { onMounted, onUnmounted, reactive, ref, computed } from 'vue'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin'
@@ -28,7 +28,7 @@ const projects = ref([
     image: 'RBAC',
     tags: ['Laravel Package', 'Authentication', 'Role Management'],
     technologies: ['PHP', 'Laravel', 'Composer', 'PHPUnit'],
-    duration: '2 months',
+    duration: 'N/A',
     teamSize: '1 member',
     impact: 'Open Source Package',
     budget: 'Open Source',
@@ -43,10 +43,10 @@ const projects = ref([
     image: 'CRM',
     tags: ['CRM', 'Laravel', 'Livewire', 'Real-time'],
     technologies: ['PHP', 'Laravel', 'Livewire', 'MySQL', 'JavaScript'],
-    duration: '4 months',
-    teamSize: '3 members',
+    duration: '2 months',
+    teamSize: '1 member',
     impact: 'Business Operations',
-    budget: '$15K',
+    budget: 'N/A',
     role: 'Lead Developer',
     link: 'https://countryroof.com'
   },
@@ -58,10 +58,10 @@ const projects = ref([
     image: 'TRAVEL',
     tags: ['Travel Booking', 'Flight Integration', 'Payment Gateway'],
     technologies: ['PHP', 'Laravel', 'MySQL', 'API Integration', 'Payment Gateway'],
-    duration: '6 months',
-    teamSize: '4 members',
+    duration: '4 months',
+    teamSize: '2 members',
     impact: 'Travel Industry',
-    budget: '$25K',
+    budget: 'N/A',
     role: 'Senior Developer',
     link: 'https://ministryoftravel.com.au'
   },
@@ -74,9 +74,9 @@ const projects = ref([
     tags: ['CRM', 'Twilio Integration', 'Websockets', 'Real-time'],
     technologies: ['PHP', 'Laravel', 'Twilio API', 'Websockets', 'MySQL'],
     duration: '5 months',
-    teamSize: '3 members',
+    teamSize: '1 member',
     impact: 'Service Industry',
-    budget: '$20K',
+    budget: 'N/A',
     role: 'Lead Developer',
     link: 'https://lastminutecleaning.com.au'
   },
@@ -91,7 +91,7 @@ const projects = ref([
     duration: '3 months',
     teamSize: '2 members',
     impact: 'IoT Innovation',
-    budget: '$12K',
+    budget: 'N/A',
     role: 'IoT Architect'
   },
   {
@@ -103,7 +103,7 @@ const projects = ref([
     tags: ['Web Development', 'Mobile Friendly', 'Responsive Design'],
     technologies: ['HTML5', 'CSS3', 'JavaScript', 'PHP', 'Laravel', 'Vue.js'],
     duration: 'Ongoing',
-    teamSize: '2-5 members',
+    teamSize: 'N/A',
     impact: 'Multiple Industries',
     budget: 'Variable',
     role: 'Full Stack Developer'
@@ -113,7 +113,7 @@ const projects = ref([
 const skills = [
   { 
     category: 'Back-end Development', 
-    items: ['PHP 7/8', 'Laravel', 'CodeIgniter 3/4', 'Livewire', 'Django (Basics)', 'ASP.NET(MVC)', 'MySQL', 'SQL'], 
+    items: ['PHP 7/8+', 'Laravel 10+', 'CodeIgniter 3/4', 'Livewire', 'Django (Basics)', 'ASP.NET(MVC)', 'MySQL', 'SQL'], 
     level: 95 
   },
   { 
@@ -224,19 +224,7 @@ const filteredProjects = computed(() => {
   }
 })
 
-// Mouse glow effect (still using reactive for the glow follower)
-const mouseX = ref(0)
-const mouseY = ref(0)
-
-const mouseGlowStyle = computed(() => ({
-  left: mouseX.value + 'px',
-  top: mouseY.value + 'px'
-}))
-
-window.addEventListener('mousemove', (e) => {
-  mouseX.value = e.clientX
-  mouseY.value = e.clientY
-})
+let disposeHomeEffects: (() => void) | undefined
 
 onMounted(() => {
   // --- HERO ANIMATIONS ---
@@ -379,47 +367,61 @@ onMounted(() => {
   }
   setupProjectAnimations()
 
-  // --- PARALLAX EFFECTS ---
+  // --- PARALLAX (smoothed scrub reduces scroll "steppiness") ---
   gsap.to('.hero-background', {
     scrollTrigger: {
       trigger: '.hero',
       start: 'top top',
       end: 'bottom top',
-      scrub: true
+      scrub: 1.2
     },
-    y: 200,
-    ease: 'none'
+    y: 120,
+    ease: 'none',
+    force3D: true
   })
 
-  // --- CUSTOM CURSOR ---
-  const cursorInner = document.querySelector('.cursor-inner')
-  const cursorOuter = document.querySelector('.cursor-outer')
+  // --- POINTER: one listener, GPU-friendly motion (no Vue/layout thrash on mousemove) ---
+  const homeRoot = document.querySelector('.home')
+  const interactiveBgEl = homeRoot?.querySelector<HTMLElement>('.interactive-bg')
+  const mouseGlowEl = homeRoot?.querySelector<HTMLElement>('.mouse-glow')
+  const cursorInner = homeRoot?.querySelector<HTMLElement>('.cursor-inner')
+  const cursorOuter = homeRoot?.querySelector<HTMLElement>('.cursor-outer')
+
+  let bgRaf = 0
+  let bgClientX = 0
+  let bgClientY = 0
+  const flushBgVars = () => {
+    bgRaf = 0
+    if (!interactiveBgEl) return
+    const px = (bgClientX / Math.max(window.innerWidth, 1)) * 100
+    const py = (bgClientY / Math.max(window.innerHeight, 1)) * 100
+    interactiveBgEl.style.setProperty('--mouse-x', `${px}%`)
+    interactiveBgEl.style.setProperty('--mouse-y', `${py}%`)
+  }
+
+  if (mouseGlowEl) {
+    gsap.set(mouseGlowEl, { xPercent: -50, yPercent: -50, force3D: true })
+  }
+  const xToGlow = mouseGlowEl
+    ? gsap.quickTo(mouseGlowEl, 'x', { duration: 0.55, ease: 'power3.out', force3D: true })
+    : null
+  const yToGlow = mouseGlowEl
+    ? gsap.quickTo(mouseGlowEl, 'y', { duration: 0.55, ease: 'power3.out', force3D: true })
+    : null
+
+  let xToInner: ReturnType<typeof gsap.quickTo> | null = null
+  let yToInner: ReturnType<typeof gsap.quickTo> | null = null
+  let xToOuter: ReturnType<typeof gsap.quickTo> | null = null
+  let yToOuter: ReturnType<typeof gsap.quickTo> | null = null
 
   if (cursorInner && cursorOuter) {
-    // Hide default cursor on body
     document.body.style.cursor = 'none'
+    gsap.set([cursorInner, cursorOuter], { xPercent: -50, yPercent: -50, force3D: true })
+    xToInner = gsap.quickTo(cursorInner, 'x', { duration: 0.06, ease: 'power2.out', force3D: true })
+    yToInner = gsap.quickTo(cursorInner, 'y', { duration: 0.06, ease: 'power2.out', force3D: true })
+    xToOuter = gsap.quickTo(cursorOuter, 'x', { duration: 0.38, ease: 'power3.out', force3D: true })
+    yToOuter = gsap.quickTo(cursorOuter, 'y', { duration: 0.38, ease: 'power3.out', force3D: true })
 
-    // Set initial centering using percent to avoid GSAP overwriting it later
-    gsap.set([cursorInner, cursorOuter], { xPercent: -50, yPercent: -50 })
-
-    window.addEventListener('mousemove', (e) => {
-      // Direct move for inner dot (zero duration for instant tracking)
-      gsap.to(cursorInner, {
-        x: e.clientX,
-        y: e.clientY,
-        duration: 0.05,
-        ease: 'power2.out'
-      })
-      // Smooth follow for outer circle
-      gsap.to(cursorOuter, {
-        x: e.clientX,
-        y: e.clientY,
-        duration: 0.4,
-        ease: 'power2.out'
-      })
-    })
-
-    // Interactions
     const interactiveElements = 'a, button, .hover-lift, .project-card, .filter-btn, .stat'
     document.querySelectorAll(interactiveElements).forEach(el => {
       el.addEventListener('mouseenter', () => {
@@ -433,10 +435,36 @@ onMounted(() => {
     })
   }
 
+  const onPointerMove = (e: MouseEvent) => {
+    bgClientX = e.clientX
+    bgClientY = e.clientY
+    if (interactiveBgEl && !bgRaf) {
+      bgRaf = requestAnimationFrame(flushBgVars)
+    }
+    xToGlow?.(e.clientX)
+    yToGlow?.(e.clientY)
+    xToInner?.(e.clientX)
+    yToInner?.(e.clientY)
+    xToOuter?.(e.clientX)
+    yToOuter?.(e.clientY)
+  }
+  window.addEventListener('mousemove', onPointerMove)
+
+  disposeHomeEffects = () => {
+    window.removeEventListener('mousemove', onPointerMove)
+    if (bgRaf) cancelAnimationFrame(bgRaf)
+    document.body.style.cursor = ''
+    ScrollTrigger.getAll().forEach(t => t.kill())
+  }
+
   // Refresh ScrollTrigger to ensure all heights are calculated
   setTimeout(() => {
     ScrollTrigger.refresh()
   }, 1000)
+})
+
+onUnmounted(() => {
+  disposeHomeEffects?.()
 })
 
 const submitForm = () => {
@@ -478,7 +506,7 @@ const toggleMobileMenu = () => {
     </div>
     
     <!-- Mouse Glow Effect -->
-    <div class="mouse-glow" :style="mouseGlowStyle"></div>
+    <div class="mouse-glow"></div>
     
     <!-- Interactive Background -->
     <div class="interactive-bg"></div>
@@ -979,17 +1007,6 @@ const toggleMobileMenu = () => {
   will-change: transform;
 }
 
-/* Mouse Glow Effect */
-.mouse-glow {
-  position: fixed;
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 1;
-  transform: translate(-50%, -50%);
-}
-
 .hero-particles {
   position: absolute;
   top: 0;
@@ -999,7 +1016,8 @@ const toggleMobileMenu = () => {
   background-image: radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
                     radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
                     radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
-  animation: float 20s ease-in-out infinite;
+  animation: float 26s ease-in-out infinite;
+  backface-visibility: hidden;
 }
 
 .floating-shapes {
@@ -1014,8 +1032,8 @@ const toggleMobileMenu = () => {
 .shape {
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(5px);
+  background: rgba(255, 255, 255, 0.14);
+  backface-visibility: hidden;
 }
 
 .shape-1 {
@@ -1023,7 +1041,7 @@ const toggleMobileMenu = () => {
   height: 100px;
   top: 20%;
   left: 10%;
-  animation: float 8s ease-in-out infinite;
+  animation: float 11s ease-in-out infinite;
 }
 
 .shape-2 {
@@ -1031,7 +1049,7 @@ const toggleMobileMenu = () => {
   height: 60px;
   top: 60%;
   right: 15%;
-  animation: float 12s ease-in-out infinite reverse;
+  animation: float 15s ease-in-out infinite reverse;
 }
 
 .shape-3 {
@@ -1039,7 +1057,7 @@ const toggleMobileMenu = () => {
   height: 80px;
   bottom: 30%;
   left: 70%;
-  animation: float 10s ease-in-out infinite;
+  animation: float 13s ease-in-out infinite;
 }
 
 .hero-content {
@@ -2082,11 +2100,6 @@ body {
   animation: floatParticle 5s infinite ease-in-out;
 }
 
-/* Enhanced Background Animations */
-.hero-gradient {
-  /* Gradient shift animation removed */
-}
-
 /* Enhanced Hover Effects */
 .hover-lift {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2097,17 +2110,20 @@ body {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
-/* Mouse Glow Effect */
+/* Mouse glow: position driven via GSAP transform only (no left/top layout thrash) */
 .mouse-glow {
   position: fixed;
-  width: 200px;
-  height: 200px;
+  left: 0;
+  top: 0;
+  width: 240px;
+  height: 240px;
+  margin: 0;
   background: radial-gradient(circle, var(--accent-color) 0%, transparent 70%);
   pointer-events: none;
   z-index: 9997;
-  transform: translate(-50%, -50%);
-  opacity: 0.1;
-  animation: glowPulse 3s infinite;
+  will-change: transform;
+  opacity: 0.09;
+  animation: glowPulse 4s ease-in-out infinite;
 }
 
 /* Enhanced Button Animations */
@@ -2227,13 +2243,12 @@ body {
 }
 
 @keyframes glowPulse {
-  0%, 100% { 
-    opacity: 0.1;
-    transform: translate(-50%, -50%) scale(1);
+  0%,
+  100% {
+    opacity: 0.06;
   }
-  50% { 
-    opacity: 0.2;
-    transform: translate(-50%, -50%) scale(1.2);
+  50% {
+    opacity: 0.14;
   }
 }
 
@@ -2270,12 +2285,12 @@ body {
 .interactive-bg::before {
   content: '';
   position: absolute;
-  width: 150%;
-  height: 150%;
-  top: -25%;
-  left: -25%;
-  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(74, 144, 226, 0.1) 0%, transparent 50%);
-  transform: translate(-50%, -50%);
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(74, 144, 226, 0.08) 0%,
+    transparent 55%
+  );
 }
 
 @media (max-width: 768px) {
